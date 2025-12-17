@@ -1,6 +1,6 @@
 ---
-title: "Data analysis pilot study: test framing and bioinspired items"
-author: "Julius Fenn, Stephanie Bugler"
+title: "Data analysis - Soft Robot Walker Study"
+author: "Julius Fenn"
 format:
   html:
     toc: true
@@ -19,11 +19,10 @@ Define your global variables (can take some time to run):
 
 ```{r}
 #| label: global variables
-
+#| 
+## global variables
 runIRTmodels <- FALSE
 
-
-## global variables
 runMplusLCA <- FALSE
 ## set to lower values to reduce compilation time: 
 nRep_def = 100 # 100
@@ -50,7 +49,8 @@ p_load('tidyverse', 'jsonlite',
        'stargazer',  'DT', 'psych',
        'writexl', 'moments', 'lavaan', 'semPlot', 'mirt', 'MplusAutomation',
        'afex', 'emmeans', 'jtools',
-       'car')
+       'car',
+       'text2sdg')
 
 
 setwd("../01_dataPreperation/outputs")
@@ -80,6 +80,7 @@ data_summary <- function(data, varname, groupnames){
   return(data_sum)
 }
 ```
+
 # Remove persons how participants two times
 
 ```{r}
@@ -226,7 +227,11 @@ rowVars <- function(x, na.rm=FALSE) {
 scales_regEX <- c("^EcologicalDimension",
             "Bioinspiration.*PN",
              "Bioinspiration.*VRtN",
-             "Bioinspiration.*IPI")
+             "Bioinspiration.*IPI",
+            "^GAToRS.*pp$",
+            "^GAToRS.*pn$",
+            "^GAToRS.*sp$",
+            "^GAToRS.*sn$")
 
 
 mat_IIRV <- matrix(data = 0, nrow = nrow(dat), ncol = length(scales_regEX)+1)
@@ -349,37 +354,13 @@ tmp_parallelAnalysis <- dimensionalityTest(label = "Overall",
 #> EFA (# of factors=2)
 tmp_EFA <- explorativeFactorAnalysis(label = "Overall",
                                  regEx = regExOverall,
-                                 dataset = dat, nfac = 2)
+                                 dataset = dat, nfac = tmp_parallelAnalysis$nfact)
 tmp_EFA[[1]]
 ```
 
 > two factor structure, within bioinspiried dimensions no strong differences in overall answering patterns; 1 items is dysfunctional (negative correlated)
 
 
-### EFA for "Bioinspiration Items"
-
-
-```{r}
-#### Overall EFA
-regExOverall <- "^Bioinspiration"
-
-
-psych::cor.plot(r = cor(dat[, str_detect(string = colnames(dat),
-                                                   pattern = regExOverall)]
-                        , use = "pairwise.complete.obs"),
-                upper = FALSE, xlas = 2, main = "Overall")
-
-#> parallel analysis
-tmp_parallelAnalysis <- dimensionalityTest(label = "Overall",
-                             regEx = regExOverall, dataset = dat)
-
-
-#> EFA (# of factors=5)
-tmp_EFA <- explorativeFactorAnalysis(label = "Overall",
-                                 regEx = regExOverall,
-                                 dataset = dat, nfac = 2)
-tmp_EFA[[1]]
-```
 
 ## Descriptives, correlation plot, EFA, CFA for "Ecological Sustainability Scale (PES)"
 
@@ -430,27 +411,6 @@ omega_results$omega.g      # Group Omega (if multiple factors)
 
 ## Descriptives, correlation plot, EFA, CFA for "Perceived Bio-Inspiration Scale (PBS)"
 
-### overall 
-
-```{r}
-#| echo: true
-#| warning: false
-
-regEx <- "^Bioinspiration"
-nameVariable <- "Bioinspiration"
-
-
-sum(str_detect(string = colnames(dat), pattern = regEx))
-
-tmp_dat <- na.omit(dat[,str_detect(string = colnames(dat), pattern = regEx)])
-
-
-tmp <- CFAstats(dataset = tmp_dat, regularExp = regEx, labelLatent = str_remove(string = nameVariable, pattern = "mean_"), 
-                showPlots = TRUE, 
-                computeEFA = TRUE, 
-                computeCFA = TRUE, 
-                computeCFAMplus = FALSE)
-```
 
 
 ### Visual Resemblance to Nature (VRtN)
@@ -638,7 +598,7 @@ tmp_parallelAnalysis <- dimensionalityTest(label = "Overall",
 #> EFA (# of factors=5)
 tmp_EFA <- explorativeFactorAnalysis(label = "Overall",
                                  regEx = regExOverall,
-                                 dataset = dat, nfac = 2)
+                                 dataset = dat, nfac = tmp_parallelAnalysis$nfact)
 tmp_EFA[[1]]
 ```
 
@@ -717,6 +677,13 @@ dat$mean_Bioinspiration_IPI <- rowMeans(x = dat[,str_subset(colnames(dat), patte
 dat$mean_Bioinspiration_VRtN <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^Bioinspiration-VRtN")])
 
 dat$mean_Ecological <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^EcologicalDimension")])
+
+
+dat$mean_GAToRS_pp <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^GAToRS.*pp$")])
+dat$mean_GAToRS_pn <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^GAToRS.*pn$")])
+dat$mean_GAToRS_sp <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^GAToRS.*sp$")])
+dat$mean_GAToRS_sn <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^GAToRS.*sn$")])
+
 ```
 
 manifest correlations:
@@ -729,25 +696,22 @@ psych::cor.plot(r = cor(dat[, str_detect(string = colnames(dat),
 ```
 
 ```{r}
-psych::cor.plot(r = cor(dat[dat$framingCondition == "bioinspired", str_detect(string = colnames(dat),
+psych::cor.plot(r = cor(dat[dat$framingCondition == "bio-inspired", str_detect(string = colnames(dat),
                                                    pattern = "^mean_")]
                         , use = "pairwise.complete.obs"),
-                upper = FALSE, xlas = 2, main = "For subset bioinspired")
+                upper = FALSE, xlas = 2, main = "For subset bio-inspired")
 
 
-plot(dat[dat$framingCondition == "bioinspired", "mean_Ecological"], dat[dat$framingCondition == "bioinspired", "mean_Bioinspiration_IPI"]) # PN most strongly related to sustainability
-plot(dat[dat$framingCondition == "bioinspired", "mean_Ecological"], dat[dat$framingCondition == "bioinspired", "mean_Bioinspiration_PN"])
+plot(dat[dat$framingCondition == "bio-inspired", "mean_Ecological"], dat[dat$framingCondition == "bio-inspired", "mean_Bioinspiration_IPI"]) # PN most strongly related to sustainability
+plot(dat[dat$framingCondition == "bio-inspired", "mean_Ecological"], dat[dat$framingCondition == "bio-inspired", "mean_Bioinspiration_PN"])
 
 
-psych::cor.plot(r = cor(dat[dat$framingCondition == "neutral", str_detect(string = colnames(dat),
+
+psych::cor.plot(r = cor(dat[dat$framingCondition == "tech-inspired", str_detect(string = colnames(dat),
                                                    pattern = "^mean_")]
                         , use = "pairwise.complete.obs"),
-                upper = FALSE, xlas = 2, main = "For subset neutral")
+                upper = FALSE, xlas = 2, main = "For subset tech-inspired")
 
-psych::cor.plot(r = cor(dat[dat$framingCondition == "sustainable", str_detect(string = colnames(dat),
-                                                   pattern = "^mean_")]
-                        , use = "pairwise.complete.obs"),
-                upper = FALSE, xlas = 2, main = "For subset sustainable")
 ```
 
 ```{r}
@@ -880,50 +844,50 @@ We are comparing the effect size or magnitude of:
 - How much "sustainable" framing boosts bioinspiration ratings.
 
 
+
+
+
 ```{r}
 # Subset only relevant cases and variables
 dat_subset <- dat %>%
   # filter(framingCondition %in% c("bioinspired", "sustainable")) %>%
   select(PROLIFIC_PID, framingCondition, mean_Bioinspiration, mean_Ecological)
 
-# Standardize the two scales
-dat_subset <- dat_subset %>%
-  mutate(
-    z_Bioinspiration = scale(mean_Bioinspiration)[, 1],
-    z_Sustainability = scale(mean_Ecological)[, 1]
-  )
 
-
-# Convert to long format
-dat_long_scaled <- dat_subset %>%
-  pivot_longer(cols = c(z_Bioinspiration, z_Sustainability),
-               names_to = "ratingType",
-               values_to = "ratingScore") %>%
+# Convert to long format (NO z-scores)
+dat_long <- dat_subset %>%
+  pivot_longer(
+    cols = c(mean_Bioinspiration, mean_Ecological),
+    names_to = "ratingType",
+    values_to = "ratingScore"
+  ) %>%
   mutate(
-    ratingType = dplyr::recode(ratingType,
-                        "z_Bioinspiration" = "Bioinspiration",
-                        "z_Sustainability" = "Sustainability"),
+    ratingType = dplyr::recode(
+      ratingType,
+      "mean_Bioinspiration" = "Bioinspiration",
+      "mean_Ecological"     = "Sustainability"
+    ),
     framingCondition = factor(framingCondition),
     ratingType = factor(ratingType)
   )
 
-dat_long_scaled$ratingType <- as.factor(dat_long_scaled$ratingType)
-dat_long_scaled$framingCondition <- relevel(dat_long_scaled$framingCondition, ref = "neutral")
+dat_long$ratingType <- as.factor(dat_long$ratingType)
 ```
+
 
 The interaction term now reflects difference in effect sizes in standard deviation units (comparable spillover strength):
 
 ```{r}
-levels(dat_long_scaled$framingCondition)
-levels(dat_long_scaled$ratingType)
+levels(dat_long$framingCondition)
+levels(dat_long$ratingType)
 
 
 # Run interaction model
-model_scaled <- lm(ratingScore ~ framingCondition * ratingType, data = dat_long_scaled)
-summary(model_scaled)
+model_lm <- lm(ratingScore ~ framingCondition * ratingType, data = dat_long)
+summary(model_lm)
 
 
-stargazer(model_scaled)
+stargazer(model_lm)
 ```
 no differences in mean scores between groups, only changes in variance:
 
@@ -936,7 +900,7 @@ library(performance)
 model_mixed <- lmer(
   ratingScore ~ framingCondition * ratingType +
     (1 | PROLIFIC_PID),
-  data = dat_long_scaled
+  data = dat_long
 )
 
 icc(model_mixed)
@@ -949,7 +913,7 @@ summary(model_mixed)
 
 
 ```{r}
-dat_long_scaled %>%
+dat_long %>%
   group_by(framingCondition, ratingType) %>%
   dplyr::summarise(
     N = n(),
@@ -960,108 +924,31 @@ dat_long_scaled %>%
 
 
 ```{r}
-ggplot(dat_long_scaled, aes(x = framingCondition, y = ratingScore, fill = ratingType)) +
-    scale_fill_manual(
-    values = c("Bioinspiration" = "#A67C49", "Sustainability" = "#55A868")
-  ) +
-  stat_summary(fun = mean, geom = "bar", position = position_dodge(0.7), width = 0.6, color = "black") +
-  stat_summary(fun.data = mean_se, geom = "errorbar", 
-               position = position_dodge(0.7), width = 0.15) +
-  labs(x = "Framing Condition", y = "Rating Score", fill = "Rating Type") +
-  theme_minimal()
-
-ggplot(dat_long_scaled, aes(x = ratingType, y = ratingScore, fill = framingCondition)) +
-    scale_fill_manual(
-    values = c("bioinspired" = "#A67C49", "sustainable" = "#55A868", "neutral" = "#E8D28B")
-  ) +
-  stat_summary(fun = mean, geom = "bar", position = position_dodge(0.7), width = 0.6, color = "black") +
-  stat_summary(fun.data = mean_se, geom = "errorbar", 
-               position = position_dodge(0.7), width = 0.15) +
-  labs(x = "Framing Condition", y = "Rating Score", fill = "Rating Type") +
-  theme_minimal()
-```
-
-
-
-
-
-```{r}
-# Reshape from wide to long format
-dat_long <- dat_subset %>%
-  pivot_longer(cols = c(mean_Bioinspiration, mean_Ecological),
-               names_to = "ratingType",
-               values_to = "ratingScore") %>%
-  mutate(
-    ratingType = dplyr::recode(ratingType,
-                        "mean_Bioinspiration" = "Bioinspiration",
-                        "mean_Ecological" = "Sustainability"),
-    framingCondition = as.factor(framingCondition),
-    ratingType = as.factor(ratingType)
-  )
-
-
 ggplot(dat_long, aes(x = framingCondition, y = ratingScore, fill = ratingType)) +
-  stat_summary(
-    fun = mean, geom = "col", position = position_dodge(0.75), 
-    width = 0.6, color = "black"
-  ) +
-  stat_summary(
-    fun.data = mean_se, geom = "errorbar", 
-    position = position_dodge(0.75), width = 0.2, size = 0.8
-  ) +
-  scale_fill_manual(
+    scale_fill_manual(
     values = c("Bioinspiration" = "#A67C49", "Sustainability" = "#55A868")
   ) +
-  labs(
-    x = "Framing Condition",
-    y = "Mean Rating Score",
-    fill = "Rating Type",
-    title = "Effect of Framing on Bioinspiration and Sustainability Ratings"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    axis.title = element_text(face = "bold"),
-    axis.text = element_text(color = "black"),
-    legend.position = "top",
-    legend.title = element_text(face = "bold"),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank()
-  )
-
+  stat_summary(fun = mean, geom = "bar", position = position_dodge(0.7), width = 0.6, color = "black") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", 
+               position = position_dodge(0.7), width = 0.15) +
+  labs(x = "Framing Condition", y = "Rating Score", fill = "Rating Type") +
+  theme_minimal()
 
 ggplot(dat_long, aes(x = ratingType, y = ratingScore, fill = framingCondition)) +
-  stat_summary(
-    fun = mean, geom = "col", position = position_dodge(0.75), 
-    width = 0.6, color = "black"
-  ) +
-  stat_summary(
-    fun.data = mean_se, geom = "errorbar", 
-    position = position_dodge(0.75), width = 0.2, size = 0.8
-  ) +
-  scale_fill_manual(
+    scale_fill_manual(
     values = c("bioinspired" = "#A67C49", "sustainable" = "#55A868", "neutral" = "#E8D28B")
   ) +
-  labs(
-    x = "Rating Type",
-    y = "Mean Rating Score",
-    fill = "Framing Condition",
-    title = "Effect of Framing on Bioinspiration and Sustainability Ratings"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    axis.title = element_text(face = "bold"),
-    axis.text = element_text(color = "black"),
-    legend.position = "top",
-    legend.title = element_text(face = "bold"),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank()
-  )
+  stat_summary(fun = mean, geom = "bar", position = position_dodge(0.7), width = 0.6, color = "black") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", 
+               position = position_dodge(0.7), width = 0.15) +
+  labs(x = "Framing Condition", y = "Rating Score", fill = "Rating Type") +
+  theme_minimal()
 ```
 
 
 ```{r}
 # Estimated marginal means for each cell
-emm <- emmeans(model_scaled, ~ framingCondition * ratingType)
+emm <- emmeans(model_lm, ~ framingCondition * ratingType)
 emm
 
 # Simple effects of ratingType within each level of framingCondition
@@ -1093,91 +980,6 @@ summary(all_contrasts)
 plot(emm, comparisons = TRUE, by = "framingCondition")
 plot(emm, comparisons = TRUE, by = "ratingType")
 ```
-## investigate if order of scales shown has an influence (in neutral)
-
-```{r}
-table(dat$framingCondition, dat$whichItemsFirst)
-```
-
-
-```{r}
-dat <- dat %>%
-  mutate(framingCondition_neutral = case_when(
-    framingCondition == "bioinspired" & whichItemsFirst == "bioinspired" ~ "bioinspired",
-    framingCondition == "sustainable" & whichItemsFirst == "sustainable" ~ "sustainable",
-    framingCondition == "neutral" & whichItemsFirst == "sustainable" ~ "neut_sustainable",
-    framingCondition == "neutral" & whichItemsFirst == "bioinspired" ~ "neut_bioinspired"
-  ))
-
-table(dat$framingCondition_neutral)
-```
-
-```{r}
-ggplot(dat, aes(x = framingCondition_neutral, y = mean_Bioinspiration)) +
-  geom_boxplot(fill = "skyblue") +
-  labs(title = "Bioinspiration by Framing", y = "Mean Score") +
-  theme_minimal()
-
-
-ggplot(dat, aes(x = framingCondition_neutral, y = mean_Bioinspiration_PN)) +
-  geom_boxplot(fill = "skyblue") +
-  labs(title = "Bioinspiration by Framing", y = "Mean Score PN") +
-  theme_minimal()
-
-ggplot(dat, aes(x = framingCondition_neutral, y = mean_Bioinspiration_IPI)) +
-  geom_boxplot(fill = "skyblue") +
-  labs(title = "Bioinspiration by Framing", y = "Mean Score IPI") +
-  theme_minimal()
-
-ggplot(dat, aes(x = framingCondition_neutral, y = mean_Bioinspiration_VRtN)) +
-  geom_boxplot(fill = "skyblue") +
-  labs(title = "Bioinspiration by Framing", y = "Mean Score VRtN") +
-  theme_minimal()
-```
-
-```{r}
-ggplot(dat, aes(x = framingCondition_neutral, y = mean_Ecological)) +
-  geom_boxplot(fill = "skyblue") +
-  labs(title = "Ecological Dimension by Framing", y = "Mean Score") +
-  theme_minimal()
-```
-
-ANOVAs + post hoc tests:
-
-```{r}
-#| message: false
-#| warning: false
-
-
-# --- ANOVA for Bioinspiration ---
-aov_bio <- aov_ez(
-  id = "PROLIFIC_PID",  # replace with your participant ID column name
-  dv = "mean_Bioinspiration",
-  data = dat,
-  between = "framingCondition_neutral"
-)
-print(aov_bio)
-
-# Post hoc (Tukey) for Bioinspiration
-em_bio <- emmeans(aov_bio, "framingCondition_neutral")
-bio_posthoc <- pairs(em_bio, adjust = "tukey")
-print(bio_posthoc)
-
-# --- ANOVA for Ecological Dimension ---
-aov_eco <- aov_ez(
-  id = "PROLIFIC_PID",  # replace with your participant ID column name
-  dv = "mean_Ecological",
-  data = dat,
-  between = "framingCondition_neutral"
-)
-print(aov_eco)
-
-# Post hoc (Tukey) for Ecological
-em_eco <- emmeans(aov_eco, "framingCondition_neutral")
-eco_posthoc <- pairs(em_eco, adjust = "tukey")
-print(eco_posthoc)
-```
-
 
 
 
@@ -1209,8 +1011,6 @@ hist(dat$mean_Ecological)
 
 
 ```{r}
-colnames(dat)
-nrow(dat)
 length(unique(dat$ID))
 length(unique(dat$PROLIFIC_PID))
 ```
@@ -1289,127 +1089,201 @@ if(runMplusLCA){
   saveRDS(list_lca_means, file="list_lca_means.rds")
 
 }else{
-  list_lca_means <- readRDS("list_lca_means.rds" )
+  # list_lca_means <- readRDS("list_lca_means.rds" )
 }
 ```
 
 
 ```{r}
-getLCAfitstatistics(listMplusOutput = list_lca_means)
+# getLCAfitstatistics(listMplusOutput = list_lca_means)
 ```
 
 
 
 ```{r}
-### number of classes
-num_classes <- 3 # index - 1
-
-# Step 1: Extract means
-params <- list_lca_means[[num_classes]]$results$parameters$unstandardized
-
-means_df <- params %>%
-  filter(paramHeader == "Means" & !grepl("^C#\\d$", param))
-
-# Step 2: Get class proportions
-class_counts <- table(list_lca_means[[num_classes]]$results$savedata$C)
-total_n <- sum(class_counts)
-class_props <- round(100 * class_counts / total_n, 1)
-
-# Create descriptive labels
-class_labels <- paste0("Class ", names(class_counts), " (", class_props, "%)")
-
-# Map class numbers to labels
-class_label_map <- setNames(class_labels, paste0("Class ", names(class_counts)))
-
-# Step 3: Prepare data for plotting
-means_long <- means_df %>%
-  mutate(Indicator = param,
-         Class = paste0("Class ", LatentClass)) %>%
-  select(Indicator, Class, est) %>%
-  pivot_wider(names_from = Class, values_from = est) %>%
-  pivot_longer(cols = starts_with("Class"), names_to = "Class", values_to = "Mean")
-
-# Apply the new labels
-means_long$Class <- class_label_map[means_long$Class]
-
-# Optional: Set indicator order
-means_long$Indicator <- factor(means_long$Indicator)
-# means_long$Indicator <- factor(means_long$Indicator,
-#                                 levels = c("Eco", "Bio_PN", "Bio_IPI", "Bio_VRtN"))
-   
-# Step 4: Plot
-ggplot(means_long, aes(x = Indicator, y = Mean, group = Class, color = Class)) +
-  geom_line(size = 1) +
-  geom_point(size = 2) +
-  theme_minimal() +
-  labs(title = "Latent Class Profile Plot",
-       x = "Items",
-       y = "Estimated Means") +
-  theme(text = element_text(size = 14),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.title = element_blank())
-```
-```{r}
-class_counts
-class_counts / nrow(dat)
+# ### number of classes
+# num_classes <- 3 # index - 1
+# 
+# # Step 1: Extract means
+# params <- list_lca_means[[num_classes]]$results$parameters$unstandardized
+# 
+# means_df <- params %>%
+#   filter(paramHeader == "Means" & !grepl("^C#\\d$", param))
+# 
+# # Step 2: Get class proportions
+# class_counts <- table(list_lca_means[[num_classes]]$results$savedata$C)
+# total_n <- sum(class_counts)
+# class_props <- round(100 * class_counts / total_n, 1)
+# 
+# # Create descriptive labels
+# class_labels <- paste0("Class ", names(class_counts), " (", class_props, "%)")
+# 
+# # Map class numbers to labels
+# class_label_map <- setNames(class_labels, paste0("Class ", names(class_counts)))
+# 
+# # Step 3: Prepare data for plotting
+# means_long <- means_df %>%
+#   mutate(Indicator = param,
+#          Class = paste0("Class ", LatentClass)) %>%
+#   select(Indicator, Class, est) %>%
+#   pivot_wider(names_from = Class, values_from = est) %>%
+#   pivot_longer(cols = starts_with("Class"), names_to = "Class", values_to = "Mean")
+# 
+# # Apply the new labels
+# means_long$Class <- class_label_map[means_long$Class]
+# 
+# # Optional: Set indicator order
+# means_long$Indicator <- factor(means_long$Indicator)
+# # means_long$Indicator <- factor(means_long$Indicator,
+# #                                 levels = c("Eco", "Bio_PN", "Bio_IPI", "Bio_VRtN"))
+#    
+# # Step 4: Plot
+# ggplot(means_long, aes(x = Indicator, y = Mean, group = Class, color = Class)) +
+#   geom_line(size = 1) +
+#   geom_point(size = 2) +
+#   theme_minimal() +
+#   labs(title = "Latent Class Profile Plot",
+#        x = "Items",
+#        y = "Estimated Means") +
+#   theme(text = element_text(size = 14),
+#         axis.text.x = element_text(angle = 45, hjust = 1),
+#         legend.title = element_blank())
+# ```
+# ```{r}
+# class_counts
+# class_counts / nrow(dat)
 ```
 
 > we chose the 4 class solution as the best model
 
 
 ```{r}
-setwd("outputs/LCA_means")
+# setwd("outputs/LCA_means")
+# 
+# 
+# dat_classes <- read.table(file = "lca_4_choosen.txt")
+# dat$lclasses_BioEco <- dat_classes$V9
+# ```
+# ```{r}
+# classes_tables <- table(dat$lclasses_BioEco, dat$framingCondition)
+# classes_tables
+# 
+# chi <- chisq.test(classes_tables, correct = FALSE)
+# chi_stat <- chi$statistic
+# chi
+# 
+# # Cramer's V
+# n <- sum(classes_tables)
+# k <- min(nrow(classes_tables), ncol(classes_tables))
+# 
+# cramers_v <- sqrt(chi_stat / (n * (k - 1)))
+# cramers_v
+```
+
+```{r}
+# # Extract standardized residuals
+# std_res <- chi$stdres
+# round(std_res, 2)  # rounded for readability
+# 
+# # See which cells are "large" (e.g., |residual| > 2)
+# which(abs(std_res) > 2, arr.ind = TRUE)
+# 
+# # A heatmap of standardized residuals with ggplot2
+# 
+# res_df <- as.data.frame(as.table(std_res))
+# colnames(res_df) <- c("lclasses_BioEco", "framingCondition", "stdres")
+# 
+# ggplot(res_df, aes(x = framingCondition,
+#                    y = lclasses_BioEco,
+#                    fill = stdres)) +
+#   geom_tile() +
+#   geom_text(aes(label = round(stdres, 2))) +
+#   scale_fill_gradient2(
+#     low = "blue",
+#     mid = "white",
+#     high = "red",
+#     midpoint = 0
+#   ) +
+#   labs(
+#     title = "Standardized residuals: lclasses_BioEco × framingCondition",
+#     x = "Framing condition",
+#     y = "lclasses_BioEco",
+#     fill = "Std. resid"
+#   ) +
+#   theme_minimal()
+```
 
 
-dat_classes <- read.table(file = "lca_4_choosen.txt")
-dat$lclasses_BioEco <- dat_classes$V9
+
+# Open Text Answers
+
+```{r}
+dat$word_count_ecological <- sapply(dat$reflection_ecological, function(x) {
+  length(strsplit(x, "\\s+")[[1]])
+})
+dat$word_count_social <- sapply(dat$reflection_social, function(x) {
+  length(strsplit(x, "\\s+")[[1]])
+})
+dat$word_count_economic <- sapply(dat$reflection_economic, function(x) {
+  length(strsplit(x, "\\s+")[[1]])
+})
+
+
+psych::describe(x = dat[, str_subset(string = colnames(dat), pattern = "^word_count")])
+
+
+# Select variables of interest
+vars_for_corr <- dat[, c(
+  "mean_Bioinspiration",
+  "mean_Bioinspiration_PN",
+  "mean_Bioinspiration_IPI",
+  "mean_Bioinspiration_VRtN",
+  "mean_Ecological",
+  "word_count_ecological",
+  "word_count_social",
+  "word_count_economic"
+)]
+
+# Correlation matrix
+cor_matrix <- cor(vars_for_corr, use = "pairwise.complete.obs")
+
+psych::corPlot(r = cor_matrix)
+
+```
+
+
+```{r}
+# run sdg detection
+hits_ecological <- text2sdg::detect_sdg_systems(dat$reflection_ecological)
+
+# create barplot
+plot_sdg(hits_ecological)
+
+# create barplot with facets
+plot_sdg(hits_ecological) + ggplot2::facet_wrap(~system)
 ```
 ```{r}
-classes_tables <- table(dat$lclasses_BioEco, dat$framingCondition)
-classes_tables
+# run sdg detection
+hits_social <- text2sdg::detect_sdg_systems(dat$reflection_social)
 
-chi <- chisq.test(classes_tables, correct = FALSE)
-chi_stat <- chi$statistic
-chi
+# create barplot
+plot_sdg(hits_social)
 
-# Cramer's V
-n <- sum(classes_tables)
-k <- min(nrow(classes_tables), ncol(classes_tables))
-
-cramers_v <- sqrt(chi_stat / (n * (k - 1)))
-cramers_v
+# create barplot with facets
+plot_sdg(hits_social) + ggplot2::facet_wrap(~system)
 ```
+
 
 ```{r}
-# Extract standardized residuals
-std_res <- chi$stdres
-round(std_res, 2)  # rounded for readability
+# run sdg detection
+hits_economic <- text2sdg::detect_sdg_systems(dat$reflection_economic)
 
-# See which cells are "large" (e.g., |residual| > 2)
-which(abs(std_res) > 2, arr.ind = TRUE)
+# create barplot
+plot_sdg(hits_economic)
 
-# A heatmap of standardized residuals with ggplot2
-
-res_df <- as.data.frame(as.table(std_res))
-colnames(res_df) <- c("lclasses_BioEco", "framingCondition", "stdres")
-
-ggplot(res_df, aes(x = framingCondition,
-                   y = lclasses_BioEco,
-                   fill = stdres)) +
-  geom_tile() +
-  geom_text(aes(label = round(stdres, 2))) +
-  scale_fill_gradient2(
-    low = "blue",
-    mid = "white",
-    high = "red",
-    midpoint = 0
-  ) +
-  labs(
-    title = "Standardized residuals: lclasses_BioEco × framingCondition",
-    x = "Framing condition",
-    y = "lclasses_BioEco",
-    fill = "Std. resid"
-  ) +
-  theme_minimal()
+# create barplot with facets
+plot_sdg(hits_economic) + ggplot2::facet_wrap(~system)
 ```
+
+
 

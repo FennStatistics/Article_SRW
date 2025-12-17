@@ -1,6 +1,6 @@
 ---
-title: "Data preperation pilot study: test framing and bioinspired items"
-author: "Julius Fenn, Stephanie Bugler"
+title: "Data preperation - Soft Robot Walker Study"
+author: "Julius Fenn"
 format:
   html:
     toc: true
@@ -46,17 +46,16 @@ p_load('tidyverse', 'jsonlite',
 
 ### load socio-demographic data
 setwd("data demographic")
-prolific1 <- read.csv(file = "prolific_export_686b77f8cfbf5d7b389a8c7f.csv", header = TRUE)
-prolific2 <- read.csv(file = "prolific_export_686b78a1a5549b7b2f0d7f73.csv", header = TRUE)
-prolific3 <- read.csv(file = "prolific_export_686b7820bd1126b3579fbda5.csv", header = TRUE)
+prolific1 <- read.csv(file = "prolific_demographic_export_6942813a230dac2c3c240557.csv", header = TRUE)
+prolific2 <- read.csv(file = "prolific_demographic_export_69428f1e1d002c0222739be4.csv", header = TRUE)
 
-prolific <- rbind(prolific1, prolific2, prolific3)
-rm(prolific1); rm(prolific2); rm(prolific3)
+prolific <- rbind(prolific1, prolific2)
+rm(prolific1); rm(prolific2)
 
 ### load JATOS data
 setwd("../data")
 suppressMessages(
-  read_file('jatos_results_data_20250721152532.txt') %>%
+  read_file('jatos_results_data_20251217131127.txt') %>%
     # ... split it into lines ...
     str_split('\n') %>% first() %>%
     # ... filter empty rows ...
@@ -131,11 +130,11 @@ sum(table(dat$ID) == max(table(dat$ID)))
 dat <-
   dat[dat$ID %in% names(table(dat$ID))[table(dat$ID) == max(table(dat$ID))], ]
 
-
+# colnames(dat)
 
 ### json (from JATOS) to 2D data.frame
 #> scales
-tmp_numeric <- str_subset(string = colnames(dat), pattern = "^EcologicalDimension|^Bioinspiration")
+tmp_numeric <- str_subset(string = colnames(dat), pattern = "^EcologicalDimension|^Bioinspiration|^evalInf|^GAToRS")
 tmp_numeric <- c(tmp_numeric, "dummy_informedconsent", "commCheck", "feedback_conscientiousCompletion", "sociodemo_age")
 
 # add paradata
@@ -143,7 +142,9 @@ tmp_notNumeric <- str_subset(string = colnames(dat), pattern = "^meta")
 tmp_notNumeric <- str_subset(string = tmp_notNumeric,
              pattern = "labjs|location",
              negate = TRUE)
-tmp_notNumeric <- c(tmp_notNumeric, "PROLIFIC_PID", "framingCondition", "sociodemo_gender", "sociodemo_priorExperience", "sociodemo_residency", "feedback_critic")
+tmp_notNumeric <- c(tmp_notNumeric, "PROLIFIC_PID", "framingCondition", "sociodemo_gender", "sociodemo_priorExperience", "sociodemo_residency", "sociodemo_education",
+                    "feedback_critic", "attCheck_text", "sociodemo_universityAffiliation", "sociodemo_universityField",
+                    "reflection_ecological", "reflection_social", "reflection_economic")
 
 ### get survey
 vec_ques <- c(tmp_notNumeric, tmp_numeric)
@@ -189,7 +190,7 @@ prolific <- prolific %>%
 
 # !!! few participants have participated in both framing conditions?
 sum(table(prolific$Participant.id) >= 2)
-prolific[prolific$Participant.id == "665d5a08c8e61c18498d08c9",]
+# prolific[prolific$Participant.id == "665d5a08c8e61c18498d08c9",]
 
 
 
@@ -221,10 +222,9 @@ questionnaire$socio_age <- as.numeric(questionnaire$socio_age)
 ```
 
 ```{r}
+# as always inconsistencies:
 table(questionnaire$socio_sex, questionnaire$sociodemo_gender)
 plot(questionnaire$socio_age, questionnaire$sociodemo_age)
-
-table(questionnaire$socio_employment)
 ```
 
 
@@ -238,7 +238,8 @@ questionnaire$ID <- factor(questionnaire$ID)
 questionnaire$sociodemo_gender <- factor(questionnaire$sociodemo_gender)
 questionnaire$sociodemo_priorExperience <- factor(questionnaire$sociodemo_priorExperience)
 questionnaire$sociodemo_residency <- factor(questionnaire$sociodemo_residency)
-
+questionnaire$sociodemo_education <- factor(questionnaire$sociodemo_education)
+questionnaire$sociodemo_universityAffiliation <- factor(questionnaire$sociodemo_universityAffiliation)
 
 questionnaire$framingCondition <- factor(questionnaire$framingCondition)
 questionnaire$whichItemsFirst <- factor(questionnaire$whichItemsFirst)
@@ -259,20 +260,79 @@ table(questionnaire$sociodemo_residency)
 ```
 
 
+## get brainstorming answers
+
+```{r}
+length(str_subset(string = colnames(dat), pattern = "^rating"))
+```
+
+```{r}
+# 1) rating columns
+rating_cols <- str_subset(colnames(dat), "^rating")
+
+# 2) function to safely coerce to numeric
+to_num <- function(x) suppressWarnings(as.numeric(as.character(x)))
+
+# 3) build long df
+df_brainstorming <- purrr::map_dfr(unique(dat$ID), function(id_val) {
+
+  sub <- dat[dat$ID == id_val, , drop = FALSE]
+
+  # keep rating columns that are NOT completely NA for this ID
+  keep_cols <- rating_cols[!vapply(sub[rating_cols], function(v) all(is.na(v)), logical(1))]
+
+  if (length(keep_cols) == 0) return(NULL)
+
+  sub %>%
+    select(ID, all_of(keep_cols)) %>%
+    pivot_longer(
+      cols = all_of(keep_cols),
+      names_to = "application",
+      values_to = "rating"
+    ) %>%
+    mutate(
+      rating = to_num(rating),
+      application = str_remove(application, "^rating-")
+    ) %>%
+    filter(!is.na(rating)) %>%
+    select(ID, application, rating)
+})
+
+df_brainstorming
+```
+
+```{r}
+table(df_brainstorming$ID)
+```
+
 
 ## reverse code items
 
-within single scales:
+### Perceived Ecological Sustainability Scale (PES)
+
 
 ```{r}
 psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^EcologicalDimension")], use =  "pairwise.complete.obs"))
+```
+
+
+
+### Perceived Bio-Inspiration Scale (PBS)
+
+
+```{r}
 psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^Bioinspiration")], use =  "pairwise.complete.obs"))
 ```
+
+
 ```{r}
 tmp_items <- str_subset(string = colnames(questionnaire), pattern = "^Bioinspiration.*r$")
 
 for(i in tmp_items){
-  questionnaire[[i]] <- 6 - questionnaire[[i]]
+  print(i)
+  print(summary(questionnaire[[i]]))
+  questionnaire[[i]] <- 8 - questionnaire[[i]]
+  print(summary(questionnaire[[i]]))
 }
 
 rm(tmp_items)
@@ -292,6 +352,32 @@ psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnai
 psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^Bioinspiration-PN")], use =  "pairwise.complete.obs"))
 ```
 
+### General Attitudes Towards Robots Scale
+
+#### Personal Level Positive Attitude
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^GAToRS.*pp$")], use =  "pairwise.complete.obs"))
+```
+
+#### Personal Level Negative Attitude
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^GAToRS.*pn$")], use =  "pairwise.complete.obs"))
+```
+
+#### Personal Level Positive Attitude
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^GAToRS.*sp$")], use =  "pairwise.complete.obs"))
+```
+
+#### Personal Level Positive Attitude
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^GAToRS.*sn$")], use =  "pairwise.complete.obs"))
+```
+
 
 ## show data
 
@@ -301,6 +387,8 @@ DT::datatable(questionnaire, options = list(pageLength = 5))
 
 
 ## save data in different formats
+
+### questionnaire
 
 ```{r}
 # Set output directory
@@ -326,3 +414,27 @@ write_csv(
 ```
 
 
+### open questions
+
+```{r}
+# Set output directory
+setwd("outputs")
+
+
+
+tmp <- str_subset(string = colnames(questionnaire), pattern = "^reflection")
+tmp <- c("ID", "PROLIFIC_PID", "whichItemsFirst", tmp, "feedback_critic")
+
+
+# Save as Excel (.xlsx)
+writexl::write_xlsx(
+  x = questionnaire[, tmp],
+  path = "questionnaire_openQuestions.xlsx"   # Save Excel file
+)
+
+# Save as Excel (.xlsx)
+writexl::write_xlsx(
+  x = df_brainstorming,
+  path = "df_brainstorming.xlsx"   # Save Excel file
+)
+```
