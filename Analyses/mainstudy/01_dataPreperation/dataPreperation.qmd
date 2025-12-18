@@ -55,7 +55,7 @@ rm(prolific1); rm(prolific2)
 ### load JATOS data
 setwd("../data")
 suppressMessages(
-  read_file('jatos_results_data_20251217131127.txt') %>%
+  read_file('jatos_results_data_20251218081001.txt') %>%
     # ... split it into lines ...
     str_split('\n') %>% first() %>%
     # ... filter empty rows ...
