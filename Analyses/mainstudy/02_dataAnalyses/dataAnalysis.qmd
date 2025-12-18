@@ -331,7 +331,7 @@ dat$flagDelete[dat$PROLIFIC_PID %in% tmp_IDs] <- 1
 # Evaluation Scales
 
 
-## Overall EFA
+## Overall EFA PES, PBS
 
 Promax rotation, factoring method minimum residual, if scale is a likert scale less or equal than 7 answering options the EFA or parallel analysis is computed over a polychoric correlation to account for non-normality of data (see in detail R-Code “helperFunctions”)
 
@@ -351,14 +351,14 @@ tmp_parallelAnalysis <- dimensionalityTest(label = "Overall",
                              regEx = regExOverall, dataset = dat)
 
 
-#> EFA (# of factors=2)
+#> EFA
 tmp_EFA <- explorativeFactorAnalysis(label = "Overall",
                                  regEx = regExOverall,
                                  dataset = dat, nfac = tmp_parallelAnalysis$nfact)
 tmp_EFA[[1]]
 ```
 
-> two factor structure, within bioinspiried dimensions no strong differences in overall answering patterns; 1 items is dysfunctional (negative correlated)
+> three factor structure, within bioinspiried dimensions no strong differences in overall answering patterns; 1 item is dysfunctional (negative correlated)
 
 
 
@@ -601,6 +601,8 @@ tmp_EFA <- explorativeFactorAnalysis(label = "Overall",
                                  dataset = dat, nfac = tmp_parallelAnalysis$nfact)
 tmp_EFA[[1]]
 ```
+> two factor structure, within bioinspiried dimensions no strong differences in overall answering patterns
+
 
 ## Item Response Theory (polytomous) for "Bioinspiration Items"
 
@@ -648,8 +650,6 @@ if(runIRTmodels){
 }
 ```
 
-
-
 Compare 1-Factor vs. 2-Factor Models:
 
 ```{r}
@@ -677,7 +677,7 @@ dat$mean_Bioinspiration_IPI <- rowMeans(x = dat[,str_subset(colnames(dat), patte
 dat$mean_Bioinspiration_VRtN <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^Bioinspiration-VRtN")])
 
 dat$mean_Ecological <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^EcologicalDimension")])
-
+s
 
 dat$mean_GAToRS_pp <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^GAToRS.*pp$")])
 dat$mean_GAToRS_pn <- rowMeans(x = dat[,str_subset(colnames(dat), pattern = "^GAToRS.*pn$")])

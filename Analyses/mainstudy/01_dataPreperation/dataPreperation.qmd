@@ -134,7 +134,7 @@ dat <-
 
 ### json (from JATOS) to 2D data.frame
 #> scales
-tmp_numeric <- str_subset(string = colnames(dat), pattern = "^EcologicalDimension|^Bioinspiration|^evalInf|^GAToRS")
+tmp_numeric <- str_subset(string = colnames(dat), pattern = "^EcologicalDimension|^Bioinspiration|^evalInf|^GAToRS|Design$|Topic$")
 tmp_numeric <- c(tmp_numeric, "dummy_informedconsent", "commCheck", "feedback_conscientiousCompletion", "sociodemo_age")
 
 # add paradata
@@ -377,6 +377,38 @@ psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnai
 ```{r}
 psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^GAToRS.*sn$")], use =  "pairwise.complete.obs"))
 ```
+### video: Subjective Outcome Evaluation Scale
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "^evalInf")], use =  "pairwise.complete.obs"))
+```
+### video: Situational Interest Scale
+
+for topic:
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "Topic$")], use =  "pairwise.complete.obs"))
+
+questionnaire$boringTopic <- 8 - questionnaire$boringTopic
+questionnaire$unnecessaryTopic <- 8 - questionnaire$unnecessaryTopic
+questionnaire$unimportantTopic <- 8 - questionnaire$unimportantTopic
+
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "Topic$")], use =  "pairwise.complete.obs"))
+```
+
+for design:
+
+
+```{r}
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "Design$")], use =  "pairwise.complete.obs"))
+
+questionnaire$boringDesign <- 8 - questionnaire$boringDesign
+questionnaire$unnecessaryDesign <- 8 - questionnaire$unnecessaryDesign
+questionnaire$unimportantDesign <- 8 - questionnaire$unimportantDesign
+
+psych::cor.plot(r = cor(questionnaire[, str_subset(string = colnames(questionnaire), pattern = "Design$")], use =  "pairwise.complete.obs"))
+```
+
 
 
 ## show data
@@ -432,9 +464,16 @@ writexl::write_xlsx(
   path = "questionnaire_openQuestions.xlsx"   # Save Excel file
 )
 
+
 # Save as Excel (.xlsx)
 writexl::write_xlsx(
   x = df_brainstorming,
   path = "df_brainstorming.xlsx"   # Save Excel file
+)
+
+# Save as RDS (R internal format)
+write_rds(
+  x = df_brainstorming,
+  file = "df_brainstorming.rds"    # Save R object for later use
 )
 ```
